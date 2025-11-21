@@ -1,0 +1,9 @@
+# Security: NEVER upload these
+.env
+.env.local
+
+# Python junk files (you don't need these on GitHub)
+__pycache__/
+*.pyc
+venv/
+.DS_Store
