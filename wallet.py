@@ -1,6 +1,6 @@
 #Wallet manager, will create and manage wallet
 import os
-from dontenv import load_dotenv
+from dotenv import load_dotenv
 from solders.keypair import Keypair
 import base58
 
