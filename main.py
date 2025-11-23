@@ -113,7 +113,7 @@ async def analyze_token_logic(chat_id, token_address, context, message_id_to_edi
             InlineKeyboardButton("Buy 1.0 SOL", callback_data=f"buy_1.0_{token_address}"),
         ],
         [
-            InlineKeyboardButton("🔄 Refresh", callback_data=f"refresh_{token_address}"),
+            InlineKeyboardButton("🔄 Refresh", callback_data=f"refresh_0_{token_address}"),
             InlineKeyboardButton("📈 Chart", url=f"{DEXSCREENER_BASE_URL}{token_data['pairAddress']}")
         ]
     ]
