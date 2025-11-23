@@ -1,5 +1,6 @@
 import aiohttp
 import json
+import time
 
 class DataEngine:
     def __init__(self):
@@ -16,14 +17,35 @@ class DataEngine:
                     data = await response.json()
                     if data.get('pairs'):
                         pair= data['pairs'][0]
+                        #calculate age or pass 0 but normaly DEXS give a pairCreatedAt
+                        create_at= pair.get('pairCreatedAt', time.time()*1000)
+                        age_hours= (time.time()*1000 - create_at)/ (1000*3600)
                         return{
+                            #Identy
                             "name": pair['baseToken']['name'],
                             "symbol": pair['baseToken']['symbol'],
+                            "pairAddress": pair['pairAddress'],
+
+                            #Market Stats
                             "price": pair['priceUsd'],
                             "liquidity": pair['liquidity']['usd'],
                             "volume_24h": pair['volume']['h24'],
                             "fdv": pair.get('fdv', 0),
-                            "pairAddress": pair['pairAddress']
+                            "market_cap": pair.get('marketCap', 0),
+
+                            #Activity
+                            "age_hours": round(age_hours, 1),
+                            "buy_tx_count": pair['txns']['h24']['buys'],
+                            "sell_tx_count": pair['txns']['h24']['buys'],
+
+                            #price changes
+                            "price_change_1h": pair['priceChange']['h1'],
+                            "price_change_24h": pair['priceChange']['h24'],
+
+                            #Holders
+                            "top_10_percentage": 0 
+                            #Dex doesnt always give holders %
+                            #Asuume 0 or get info from Solscan
                         }
         return None
     
