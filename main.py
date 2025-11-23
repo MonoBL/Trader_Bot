@@ -129,13 +129,26 @@ async def analyze_token_logic(chat_id, token_address, context, message_id_to_edi
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    #Detect when user past a Contract Adrres
+    """Detects when user pastes a CA"""
+    # Check if message has text (it might be a photo or sticker)
+    if not update.message or not update.message.text:
+        print("⚠️ Received a message without text.")
+        return
+
     text = update.message.text.strip()
     chat_id = update.message.chat_id
+    
+    # --- DEBUG PRINTS (This will show in your terminal) ---
+    print(f"📩 Received Message: '{text}'")
+    print(f"📏 Length: {len(text)}")
+    # -----------------------------------------------------
 
-    #Filter: solana adrres are usually 32-44 chars long
-    if 30< len(text)< 50 and "" not in text:
+    # Simple filter: Solana addresses are usually 32-44 chars long
+    if 30 < len(text) < 50 and " " not in text:
+        print("✅ Valid Address format detected! Starting analysis...")
         await analyze_token_logic(chat_id, text, context)
+    else:
+        print("❌ Message ignored: Too short, too long, or contains spaces.")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     #Handles button clicks
@@ -218,7 +231,7 @@ if __name__ == '__main__':
 
     #add handlers
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.Text & (~filters.COMMAND), handle_message))
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_handler))
 
     print("✅ Bot is running... Press Ctrl+C to stop.")

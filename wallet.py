@@ -1,7 +1,7 @@
 #Wallet manager, will create and manage wallet
 import os
 from dotenv import load_dotenv
-from solders.keypair import Keypair
+from solders.keypair import Keypair as SolanaKeypair
 import base58
 
 load_dotenv()
@@ -17,16 +17,18 @@ class WalletManager:
         if pk_str:
             try:
                 #load existing wallet
-                Keypair = Keypair.from_base58_string(pk_str)
-                print(f"✅ Wallet loaded: {Keypair.pubkey()}")
-                return Keypair
+                loaded_keypair = SolanaKeypair.from_base58_string(pk_str)
+                print(f"✅ Wallet loaded: {loaded_keypair.pubkey()}")
+                return loaded_keypair
             except Exception as e:
                 print(f"❌ Error loading key: {e}")
 
         # IF no key existing create a wallet
         print("⚠️ No wallet found in .env. Generating a new one")
-        new_keypair = Keypair()
-        secret_string= base58.b58encode(bytes(new_keypair.to_bytes_array())).decode('utf-8')
+
+        new_keypair = SolanaKeypair()
+
+        secret_string= base58.b58encode(bytes(new_keypair)).decode('utf-8')
 
         print(f"\n!!! SAVE THIS TO YOUR .env FILE !!!")
         print(f"PRIVATE_KEY_BASE58= {secret_string}")
