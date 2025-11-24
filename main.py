@@ -5,6 +5,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 from dotenv import load_dotenv
+from solana.rpc.async_api import AsyncClient
+from solders.pubkey import Pubkey
 
 #Improt Modules
 from wallet import WalletManager
@@ -28,6 +30,24 @@ ai_brain= AIAnalyst()
 #Constants
 SOL_MINT = "So11111111111111111111111111111111111111112"
 DEXSCREENER_BASE_URL = "https://dexscreener.com/solana/"
+
+#get solana balance on the wallet
+async def get_solana_balance(address_str):
+    #Connect to the rpc and check the  balance 
+    try:
+        #connect to the rpc
+        async with AsyncClient("https://api.mainnet-beta.solana.com") as client:
+            #conver string addres to pubkey
+            pubkey= Pubkey.from_string(address_str)
+            #fetch balance (return on lamports)
+            response= await client.get_balance(pubkey)
+            # 1 SOL = 1,000,000,000 Lamports
+            balance_sol = response.value/ 1_000_000_000
+            return balance_sol
+    except Exception as e:
+        logging.error(f"Error fetching balance: {e}")
+        return 0.0
+
 
 #telegram command handlers
 async def start(update:Update, context: ContextTypes.DEFAULT_TYPE):
@@ -156,6 +176,33 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer() # Acknowledge click to stop loading animation
 
     data= query.data
+
+    #wallet refresh
+    if data == "check_wallet":
+        user_address = wallet.get_public_key()
+        balance = await get_solana_balance(user_address)
+
+        text = (
+            f"💳 **Your Wallet**\n"
+            f"`{user_address}`\n\n"
+            f"💰 **SOL Balance:** {balance:.4f} SOL\n"
+            f"🔗 [View Holdings on Solscan](https://solscan.io/account/{user_address}#portfolio)"
+        )
+
+        #keep the refresh button there
+        keyboard= [[InlineKeyboardButton("🔄 Refresh Balance", callback_data="check_wallet")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            text=text, 
+            parse_mode=ParseMode.MARKDOWN, 
+            reply_markup=reply_markup,
+            disable_web_page_preview=True
+        )
+        return
+
+
+
     action, value, token_address = data.split('_')
 
     if action == "refresh":
@@ -217,7 +264,38 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logging.error(f"Trade failed: {e}")
             await query.message.reply_text(f"❌ **Trade Failed:** {str(e)}")
-            
+
+async def wallet_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    #Show wallet details and balance
+    user_address = wallet.get_public_key()
+
+    msg = await update.message.reply_text("🏦 Fetching wallet data...")
+
+    #get real balance
+    balance = await get_solana_balance(user_address)
+
+    #format msg
+    text=(
+        f"💳 **Your Wallet**\n"
+        f"`{user_address}`\n\n"
+        f"💰 **SOL Balance:** {balance:.4f} SOL\n"
+        f"💵 **USD Value:** ${balance * 245:.2f} (Approx)\n\n" # You can fetch real SOL price later if you want
+        f"🔗 [View Holdings on Solscan](https://solscan.io/account/{user_address}#portfolio)"
+    )
+
+    #add button to refresh 
+    keyboard= [[InlineKeyboardButton("🔄 Refresh Balance", callback_data="check_wallet")]]  
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await context.bot.edit_message_text(
+        chat_id=update.message.chat_id,
+        message_id=msg.message_id,
+        text=text,
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=reply_markup,
+        disable_web_page_preview=True
+    )
+
 #main entry point
 if __name__ == '__main__':
     #check for token
@@ -231,6 +309,7 @@ if __name__ == '__main__':
 
     #add handlers
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("wallet", wallet_info))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_handler))
 

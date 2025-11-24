@@ -1,6 +1,8 @@
 import aiohttp
 import json
 import time
+import socket
+
 
 class DataEngine:
     def __init__(self):
@@ -11,7 +13,8 @@ class DataEngine:
 
     async def get_token_data(self, token_address):
         #Will get prces adn liquidity from DexScreener
-        async with aiohttp.ClientSession() as session:
+        conn=aiohttp.TCPConnector(family=socket.AF_INET, ssl=False)
+        async with aiohttp.ClientSession(connector=conn) as session:
             async with session.get(self.dex_api + token_address) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -35,20 +38,20 @@ class DataEngine:
                             "pairAddress": pair.get('pairAddress', token_address),
                             
                             # Market Stats
-                            "price": pair.get('priceUsd', 0),
-                            "liquidity": liquidity.get('usd', 0),
-                            "volume_24h": volume.get('h24', 0),
-                            "fdv": pair.get('fdv', 0),
-                            "market_cap": pair.get('marketCap', 0),
+                            "price": float(pair.get('priceUsd', 0)),
+                            "liquidity": float(liquidity.get('usd', 0)),
+                            "volume_24h": float(volume.get('h24', 0)),
+                            "fdv": float(pair.get('fdv', 0)),
+                            "market_cap": float(pair.get('marketCap', 0)),
                             
                             # Momentum / Activity
                             "age_hours": round(age_hours, 1),
-                            "buy_tx_count": txns.get('buys', 0),
-                            "sell_tx_count": txns.get('sells', 0),
+                            "buy_tx_count": int(txns.get('buys', 0)),
+                            "sell_tx_count": int(txns.get('sells', 0)),
                             
                             # Price Changes (Safe Access)
-                            "price_change_1h": price_change.get('h1', 0),
-                            "price_change_24h": price_change.get('h24', 0),
+                            "price_change_1h": float(price_change.get('h1', 0)),
+                            "price_change_24h": float(price_change.get('h24', 0)),
                             
                             "top_10_percentage": 0
                             #Dex doesnt always give holders %
@@ -57,8 +60,9 @@ class DataEngine:
         return None
     
     async def check_safety(self, token_address):
+        conn = aiohttp.TCPConnector(family=socket.AF_INET, ssl=False)
         """Checks if the token is a honeypot via RugCheck"""
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=conn) as session:
             try:
                 async with session.get(f"{self.rugcheck_api}{token_address}/report") as response:
                     if response.status == 200:
@@ -77,13 +81,16 @@ class DataEngine:
         params = {
             "inputMint": input_mint,
             "outputMint": output_mint,
-            "amount": amount_lamports,
+            "amount": str(amount_lamports),
             "slippageBps": 100 # 1% slippage
         }
-        async with aiohttp.ClientSession() as session:
+
+        conn = aiohttp.TCPConnector(family=socket.AF_INET, ssl=False)
+        async with aiohttp.ClientSession(connector=conn) as session:
             try:
                 async with session.get(self.jupiter_quote_api, params=params) as response:
                     if response.status != 200:
+                        print(f"Jupiter Quote Error: {await response.text()}")
                         return None
                     quote_data = await response.json()
                     
