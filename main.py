@@ -12,6 +12,7 @@ from solders.pubkey import Pubkey
 from wallet import WalletManager
 from data_engine import DataEngine
 from ai_analyst import AIAnalyst
+from hunter import Hunter
 
 #Setup And Configs
 load_dotenv()
@@ -26,10 +27,13 @@ logging.basicConfig(
 wallet= WalletManager()
 data_engine= DataEngine()
 ai_brain= AIAnalyst()
+hunter_bot = Hunter(ai_brain)
 
 #Constants
 SOL_MINT = "So11111111111111111111111111111111111111112"
 DEXSCREENER_BASE_URL = "https://dexscreener.com/solana/"
+
+
 
 #get solana balance on the wallet
 async def get_solana_balance(address_str):
@@ -81,7 +85,7 @@ async def analyze_token_logic(chat_id, token_address, context, message_id_to_edi
     #fetch data (DexScreener)
     token_data= await data_engine.get_token_data(token_address)
     if not token_data:
-        await context.bot.id_message_text(
+        await context.bot.edit_message_text(
             chat_id=chat_id,
             message_id=message_id_to_edit,
             text="❌ **Error:** Token not found on DexScreener."
@@ -145,6 +149,25 @@ async def analyze_token_logic(chat_id, token_address, context, message_id_to_edi
         message_id=message_id_to_edit,
         text=message_text,
         reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+
+#get best coins of the day
+async def hunt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    #trigers the research preocess
+    msg= await update.message.reply_text("🕵️ **Scanning the market...**" \
+    "\nChecking CoinGecko Trending & DexScreener." \
+    "\nThis may take 10-20 seconds.")
+
+    #Run The hunter
+    report = await hunter_bot.hunt()
+
+    #send Results
+    await context.bot.edit_message_text(
+        chat_id=update.message.chat_id,
+        message_id=msg.message_id,
+        text=report,
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -310,6 +333,7 @@ if __name__ == '__main__':
     #add handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("wallet", wallet_info))
+    app.add_handler(CommandHandler("hunt", hunt_command))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     app.add_handler(CallbackQueryHandler(button_handler))
 
